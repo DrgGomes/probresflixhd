@@ -113,7 +113,7 @@ export default function Home() {
            ========================================== */
         <div className="pt-32 px-6 md:px-16 pb-32 min-h-screen">
           <h2 className="text-2xl md:text-3xl font-bold mb-8 text-gray-100">
-            Resultados para: <span className="text-blue-500">"{termoBusca}"</span>
+            Resultados para: <span className="text-blue-500">&quot;{termoBusca}&quot;</span>
           </h2>
           
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
