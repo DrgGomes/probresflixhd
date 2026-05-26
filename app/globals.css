@@ -1,0 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background-color: #0f172a; /* Azul muito escuro, estilo Disney+ / Star+ */
+  color: white;
+  overflow-x: hidden;
+}
+
+/* Esconde a barra de rolagem para ficar mais limpo */
+::-webkit-scrollbar {
+  display: none;
+}
