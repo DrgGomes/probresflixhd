@@ -1,104 +1,92 @@
 'use client';
-import React, { useState } from 'react';
-import { auth } from '../../firebase';
+import React, { useState, useEffect } from 'react';
+import { auth, app } from '../../firebase';
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc } from 'firebase/firestore';
+
+const db = getFirestore(app);
 
 export default function AdminPanel() {
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
-  const [erro, setErro] = useState('');
   const [logado, setLogado] = useState(false);
+  
+  // Estados para Canais
+  const [nomeCanal, setNomeCanal] = useState('');
+  const [urlIframe, setUrlIframe] = useState('');
+  const [listaCanais, setListaCanais] = useState<any[]>([]);
 
-  // CORREÇÃO: Adicionámos o tipo genérico React.FormEvent ao parâmetro (e)
+  // Carrega lista de canais existentes
+  const carregarCanais = async () => {
+    const querySnapshot = await getDocs(collection(db, 'canais'));
+    setListaCanais(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+  };
+
   const fazerLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       await signInWithEmailAndPassword(auth, email, senha);
       setLogado(true);
-      setErro('');
-    } catch (error) {
-      setErro('E-mail ou senha incorretos! Tente novamente.');
-    }
+      carregarCanais();
+    } catch { alert("Erro ao logar"); }
   };
 
-  const fazerLogout = async () => {
-    await signOut(auth);
-    setLogado(false);
+  const adicionarCanal = async () => {
+    if (!nomeCanal || !urlIframe) return alert("Preencha tudo!");
+    try {
+      await addDoc(collection(db, 'canais'), { nome: nomeCanal, src: urlIframe });
+      alert("Canal adicionado!");
+      setNomeCanal(''); setUrlIframe('');
+      carregarCanais(); // Atualiza a lista na tela
+    } catch { alert("Erro ao salvar"); }
   };
 
-  // TELA DO PAINEL (O QUE VOCÊ VÊ APÓS LOGAR)
+  const deletarCanal = async (id: string) => {
+    await deleteDoc(doc(db, 'canais', id));
+    carregarCanais();
+  };
+
   if (logado) {
     return (
-      <div className="min-h-screen bg-[#0f172a] text-white p-10 font-sans">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex justify-between items-center mb-10 pb-6 border-b border-gray-800">
-            <h1 className="text-3xl font-extrabold text-blue-500 tracking-wider">
-              FLIX<span className="text-white">PLUS</span> <span className="text-gray-500 text-xl font-medium">| Painel Admin</span>
-            </h1>
-            <button 
-              onClick={fazerLogout} 
-              className="bg-red-600 hover:bg-red-700 px-6 py-2 rounded-lg font-bold transition-all shadow-lg"
-            >
-              Sair
-            </button>
+      <div className="min-h-screen bg-[#0f172a] text-white p-6 md:p-12">
+        <div className="flex justify-between items-center mb-10">
+          <h1 className="text-3xl font-black">Painel de Gestão: Canais</h1>
+          <button onClick={() => signOut(auth).then(() => setLogado(false))} className="bg-red-600 px-6 py-2 rounded-lg font-bold">Sair</button>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-10">
+          {/* Formulário */}
+          <div className="bg-gray-900 p-6 rounded-2xl border border-gray-800">
+            <h2 className="text-xl font-bold mb-4">Adicionar Novo Canal</h2>
+            <input className="w-full p-3 mb-4 bg-gray-800 rounded border border-gray-700" placeholder="Nome (Ex: Globo)" value={nomeCanal} onChange={(e) => setNomeCanal(e.target.value)} />
+            <input className="w-full p-3 mb-4 bg-gray-800 rounded border border-gray-700" placeholder="Link do Iframe (src)" value={urlIframe} onChange={(e) => setUrlIframe(e.target.value)} />
+            <button onClick={adicionarCanal} className="w-full bg-blue-600 p-4 rounded-xl font-bold hover:bg-blue-700">Salvar no Site</button>
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-gray-900 p-6 rounded-2xl border border-gray-800 shadow-xl">
-              <h2 className="text-xl font-bold mb-2">Bem-vindo, Chefe! 🎬</h2>
-              <p className="text-gray-400 text-sm">O seu sistema de streaming está operacional. O que deseja gerir hoje?</p>
+
+          {/* Lista Atual */}
+          <div className="bg-gray-900 p-6 rounded-2xl border border-gray-800">
+            <h2 className="text-xl font-bold mb-4">Canais Cadastrados ({listaCanais.length})</h2>
+            <div className="space-y-2">
+              {listaCanais.map(c => (
+                <div key={c.id} className="flex justify-between items-center p-3 bg-gray-800 rounded-lg">
+                  <span>{c.nome}</span>
+                  <button onClick={() => deletarCanal(c.id)} className="text-red-500 font-bold hover:underline">Remover</button>
+                </div>
+              ))}
             </div>
-            {/* Aqui adicionaremos os botões de adicionar filmes e gerir utilizadores depois */}
           </div>
         </div>
       </div>
     );
   }
 
-  // TELA DE LOGIN (O QUE OS INVASORES VEEM)
   return (
-    <div className="min-h-screen bg-[#0f172a] flex items-center justify-center p-4 font-sans">
-      <form onSubmit={fazerLogin} className="bg-gray-900 p-10 rounded-3xl border border-gray-800 w-full max-w-md shadow-2xl relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-2 bg-blue-600"></div>
-        <h2 className="text-3xl font-extrabold text-center text-white mb-2">Acesso Restrito</h2>
-        <p className="text-center text-gray-400 mb-8 text-sm">Insira as suas credenciais para continuar.</p>
-        
-        {erro && (
-          <div className="bg-red-500/10 text-red-500 p-3 rounded-lg mb-6 text-center border border-red-500/20 text-sm font-bold">
-            {erro}
-          </div>
-        )}
-        
-        <div className="space-y-5">
-          <div>
-            <label className="block text-gray-400 mb-2 text-sm font-semibold">E-mail Administrativo</label>
-            <input 
-              type="email" 
-              value={email} 
-              onChange={(e) => setEmail(e.target.value)} 
-              className="w-full bg-[#0f172a] text-white p-3.5 rounded-xl border border-gray-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none transition-all" 
-              placeholder="admin@flixplus.com"
-              required 
-            />
-          </div>
-          <div>
-            <label className="block text-gray-400 mb-2 text-sm font-semibold">Palavra-passe</label>
-            <input 
-              type="password" 
-              value={senha} 
-              onChange={(e) => setSenha(e.target.value)} 
-              className="w-full bg-[#0f172a] text-white p-3.5 rounded-xl border border-gray-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none transition-all" 
-              placeholder="••••••••"
-              required 
-            />
-          </div>
-          <button 
-            type="submit" 
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl transition-all shadow-lg hover:shadow-blue-500/20 mt-4"
-          >
-            Entrar no Painel
-          </button>
-        </div>
+    <div className="min-h-screen flex items-center justify-center bg-[#0f172a]">
+      <form onSubmit={fazerLogin} className="bg-gray-900 p-8 rounded-2xl w-96 border border-gray-800">
+        <h2 className="text-2xl font-bold mb-6 text-center">Login Admin</h2>
+        <input type="email" placeholder="Email" className="w-full p-3 mb-4 bg-gray-800 rounded" onChange={(e) => setEmail(e.target.value)} />
+        <input type="password" placeholder="Senha" className="w-full p-3 mb-4 bg-gray-800 rounded" onChange={(e) => setSenha(e.target.value)} />
+        <button className="w-full bg-blue-600 p-3 rounded font-bold">Entrar</button>
       </form>
     </div>
   );
